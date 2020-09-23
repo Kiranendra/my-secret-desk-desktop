@@ -5,6 +5,7 @@ from sqlite3 import connect
 from time import localtime
 from tkcalendar import Calendar
 from base64 import b64encode, b64decode
+from webbrowser import open_new
 
 global root
 root = Tk()
@@ -14,6 +15,8 @@ root.resizable(0, 0)
 ########################
 ##### GENERAL FUNCTIONS ######
 ########################
+def visit_website():
+    open_new("https://kiranendra.github.io/msd/")
 
 def encrypt_value(value):
     return b64encode(bytes(str(value), encoding='ISO-8859-1'))
@@ -614,8 +617,10 @@ def main():
     global msd_window
     msd_window = Tk()
     msd_window.title("My Secret Desk - MSD")
-    msd_window.geometry("800x500")
+    msd_window.geometry("800x520")
     msd_window.resizable(0, 0)
+    web_button = Button(msd_window, text='Visit Website', command=visit_website)
+    web_button.pack(anchor='w', padx=10, pady=5)
     tabs_window = Notebook(msd_window)
     
     ################
@@ -719,7 +724,7 @@ def main():
     tabs_window.add(tab_3, text='Passwords')
     tabs_window.pack(expand=1, fill='both', pady=10, padx=10)
     exit_button = Button(msd_window, text='EXIT',  pady=5, command=close_application)
-    exit_button.pack(anchor='e', padx=3, pady=2)
+    exit_button.pack(anchor='e', padx=10, pady=3)
     msd_window.protocol("WM_DELETE_WINDOW", do_nothing)
     msd_window.mainloop()
 
