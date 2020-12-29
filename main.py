@@ -6,11 +6,11 @@ from time import localtime
 from tkcalendar import Calendar
 from base64 import b64encode, b64decode
 from webbrowser import open_new
+from msd.cipher import get_db_path, encrypted, decrypted
+from msd.secret import check_db, check_data, secret
 
 global root
-root = Tk()
-root.geometry("300x250")
-root.resizable(0, 0)
+root = None
 
 ########################
 ##### GENERAL FUNCTIONS ######
@@ -19,10 +19,10 @@ def visit_website():
     open_new("https://kiranendra.github.io/msd/")
 
 def encrypt_value(value):
-    return b64encode(bytes(str(value), encoding='ISO-8859-1'))
+    return encrypted(value)
 
 def decrypt_value(value):
-    return str(b64decode(value), encoding='ISO-8859-1')
+    return decrypted(value)
 
 def close_application():
     msd_window.destroy()
@@ -31,33 +31,46 @@ def do_nothing():
     pass  
 
 def create_tables():
-    con = connect('msd.db')
-    cur = con.cursor()
-    cur.execute("CREATE TABLE IF NOT EXISTS msd_notes (title TEXT, date TEXT, time TEXT, notes  TEXT)")
-    cur.execute("CREATE TABLE IF NOT EXISTS msd_appointments (name TEXT, date TEXT, time TEXT, description TEXT, status TEXT)")
-    cur.execute("CREATE TABLE IF NOT EXISTS msd_passwords (web_desc TEXT, username TEXT, password TEXT)")
-    cur.execute("CREATE TABLE IF NOT EXISTS msd_login (password TEXT)")
-    cur.close()
-    con.close()
+    p = get_db_path()
+    if p is not None:
+        con = connect(p)
+        cur = con.cursor()
+        cur.execute("CREATE TABLE IF NOT EXISTS msd_notes (title TEXT, date TEXT, time TEXT, notes  TEXT)")
+        cur.execute("CREATE TABLE IF NOT EXISTS msd_appointments (name TEXT, date TEXT, time TEXT, description TEXT, status TEXT)")
+        cur.execute("CREATE TABLE IF NOT EXISTS msd_passwords (web_desc TEXT, username TEXT, password TEXT)")
+        cur.execute("CREATE TABLE IF NOT EXISTS msd_login (password TEXT)")
+        cur.close()
+        con.close()
+    else:
+        showerror("Error", "Error while creating the tables")
 
 def create_login(user_pass):
-    con = connect('msd.db')
-    cur = con.cursor()
-    cur.execute("INSERT INTO msd_login (password) VALUES (?)", (encrypt_value(user_pass), ))
-    con.commit()
-    cur.close()
-    con.close()
-    showinfo("Thank you!", "Please login again")
-    root.destroy()
-    exit()
+    p = get_db_path()
+    if p is not None:
+        con = connect(p)
+        cur = con.cursor()
+        cur.execute("INSERT INTO msd_login (password) VALUES (?)", (encrypt_value(user_pass), ))
+        con.commit()
+        cur.close()
+        con.close()
+        showinfo("Thank you!", "Please login again")
+        root.destroy()
+        exit()
+    else:
+        showerror("Error", "Error while creating login")
 
 def check_is_login_available():
-    con = connect('msd.db')
-    cur = con.cursor()
-    cur.execute("SELECT password FROM msd_login")
-    got_pass = cur.fetchone()
-    cur.close()
-    con.close()
+    p = get_db_path()
+    got_pass = None
+    if p is not None:
+        con = connect(p)
+        cur = con.cursor()
+        cur.execute("SELECT password FROM msd_login")
+        got_pass = cur.fetchone()
+        cur.close()
+        con.close()
+    else:
+        showerror("Error", "Error while checking login")
     if got_pass == None:
         return None
     else:
@@ -83,13 +96,17 @@ def validate_login(user_pass, db_pass):
 ########################
 
 def get_selected_notes(title):
-    con = connect('msd.db')
-    cur = con.cursor()
-    cur.execute("""SELECT notes FROM msd_notes WHERE title=:title""", {'title': encrypt_value(title.strip())})
-    all_notes = cur.fetchone()
-    cur.close()
-    con.close()
-    return decrypt_value(all_notes[0])
+    p = get_db_path()
+    if p is not None:
+        con = connect(p)
+        cur = con.cursor()
+        cur.execute("""SELECT notes FROM msd_notes WHERE title=:title""", {'title': encrypt_value(title.strip())})
+        all_notes = cur.fetchone()
+        cur.close()
+        con.close()
+        return decrypt_value(all_notes[0])
+    else:
+        showerror("Error", "Error while retreiving notes")
 
 def update_tab_1_treeview():
     for child in tab_1_treeview.get_children():
@@ -97,16 +114,20 @@ def update_tab_1_treeview():
     read_notes_from_db()
 
 def read_notes_only_from_db(title):
-    con = connect('msd.db')
-    cur = con.cursor()
-    cur.execute("""SELECT title FROM msd_notes WHERE title=:title""", {'title': encrypt_value(title)})
-    got_title = cur.fetchone()
-    cur.close()
-    con.close()
-    if got_title == None:
-        return None
+    p = get_db_path()
+    if p is not None:
+        con = connect(p)
+        cur = con.cursor()
+        cur.execute("""SELECT title FROM msd_notes WHERE title=:title""", {'title': encrypt_value(title)})
+        got_title = cur.fetchone()
+        cur.close()
+        con.close()
+        if got_title == None:
+            return None
+        else:
+            return decrypt_value(got_title[0])
     else:
-        return decrypt_value(got_title[0])
+        showerror("Error", "Error while retreiving notes")
 
 def check_notes_title_redundancy(title):
     db_title = read_notes_only_from_db(title)
@@ -116,13 +137,14 @@ def check_notes_title_redundancy(title):
         return False
 
 def save_notes():
-    if not check_notes_title_redundancy(title_entry.get().strip()):
+    p = get_db_path()
+    if p is not None and not check_notes_title_redundancy(title_entry.get().strip()):
         add_notes_button["state"] = "normal"
         open_notes_button["state"] = "normal"
         delete_notes_button["state"] = "normal"
         now_date = str(localtime().tm_year) + '-' + str(localtime().tm_mon) + '-' + str(localtime().tm_mday)
         now_time = str(localtime().tm_hour) + ':' + str(localtime().tm_min)  + ':' + str(localtime().tm_sec)
-        con = connect('msd.db')
+        con = connect(p)
         cur = con.cursor()
         cur.execute("INSERT INTO msd_notes (title, date, time, notes) VALUES (?, ?, ?, ?)", (encrypt_value(title_entry.get().strip()), encrypt_value(now_date), encrypt_value(now_time), encrypt_value(textarea.get("1.0", 'end').strip())))
         con.commit()
@@ -132,19 +154,21 @@ def save_notes():
         window.destroy()
 
 def update_notes(title, notes):
-    add_notes_button["state"] = "normal"
-    open_notes_button["state"] = "normal"
-    delete_notes_button["state"] = "normal"
-    now_date = str(localtime().tm_year) + '-' + str(localtime().tm_mon) + '-' + str(localtime().tm_mday)
-    now_time = str(localtime().tm_hour) + ':' + str(localtime().tm_min)  + ':' + str(localtime().tm_sec)
-    con = connect('msd.db')
-    cur = con.cursor()
-    cur.execute("""UPDATE msd_notes SET date=:now_date, time=:now_time, notes=:notes WHERE title=:title""", {'title': encrypt_value(title), 'now_date': encrypt_value(now_date), 'now_time': encrypt_value(now_time), 'notes': encrypt_value(notes)})
-    con.commit()
-    cur.close()
-    con.close()
-    update_tab_1_treeview()
-    window.destroy()
+    p = get_db_path()
+    if p is not None:
+        add_notes_button["state"] = "normal"
+        open_notes_button["state"] = "normal"
+        delete_notes_button["state"] = "normal"
+        now_date = str(localtime().tm_year) + '-' + str(localtime().tm_mon) + '-' + str(localtime().tm_mday)
+        now_time = str(localtime().tm_hour) + ':' + str(localtime().tm_min)  + ':' + str(localtime().tm_sec)
+        con = connect(p)
+        cur = con.cursor()
+        cur.execute("""UPDATE msd_notes SET date=:now_date, time=:now_time, notes=:notes WHERE title=:title""", {'title': encrypt_value(title), 'now_date': encrypt_value(now_date), 'now_time': encrypt_value(now_time), 'notes': encrypt_value(notes)})
+        con.commit()
+        cur.close()
+        con.close()
+        update_tab_1_treeview()
+        window.destroy()
 
 def notes_cancel():
     add_notes_button["state"] = "normal"
@@ -153,17 +177,19 @@ def notes_cancel():
     window.destroy()  
 
 def read_notes_from_db():
-    con = connect('msd.db')
-    cur = con.cursor()
-    cur.execute("SELECT * FROM msd_notes")
-    all_notes = cur.fetchall()
-    i = 0
-    for row in all_notes:
-        tab_1_treeview.insert(parent='', index='end', iid=i, text=decrypt_value(row[0]), values=(decrypt_value(row[2]), decrypt_value(row[1])))
-        i += 1
-    tab_1_treeview.pack()
-    cur.close()
-    con.close()
+    p = get_db_path()
+    if p is not None:
+        con = connect(p)
+        cur = con.cursor()
+        cur.execute("SELECT * FROM msd_notes")
+        all_notes = cur.fetchall()
+        i = 0
+        for row in all_notes:
+            tab_1_treeview.insert(parent='', index='end', iid=i, text=decrypt_value(row[0]), values=(decrypt_value(row[2]), decrypt_value(row[1])))
+            i += 1
+        tab_1_treeview.pack()
+        cur.close()
+        con.close()
 
 def add_notes():
     add_notes_button["state"] = "disabled"
@@ -229,15 +255,17 @@ def delete_notes():
     if tab_1_treeview.focus() == '':
         tab_1_button_message.set("Please select a notes")
     else:
-        tab_1_button_message.set("")
-        delete_title = tab_1_treeview.item(tab_1_treeview.focus())['text'].strip()
-        con = connect('msd.db')
-        cur = con.cursor()
-        cur.execute("""DELETE FROM msd_notes WHERE title=:title""", {'title': encrypt_value(delete_title)})
-        con.commit()
-        cur.close()
-        con.close()
-        update_tab_1_treeview()
+        p = get_db_path()
+        if p is not None:
+            tab_1_button_message.set("")
+            delete_title = tab_1_treeview.item(tab_1_treeview.focus())['text'].strip()
+            con = connect(p)
+            cur = con.cursor()
+            cur.execute("""DELETE FROM msd_notes WHERE title=:title""", {'title': encrypt_value(delete_title)})
+            con.commit()
+            cur.close()
+            con.close()
+            update_tab_1_treeview()
 
 #------------------------------------------
 
@@ -246,17 +274,19 @@ def delete_notes():
 ########################
     
 def read_appointments_from_db():
-    con = connect('msd.db')
-    cur = con.cursor()
-    cur.execute("SELECT * FROM msd_appointments")
-    all_appointments = cur.fetchall()
-    i = 0
-    for row in all_appointments:
-        tab_2_treeview.insert(parent='', index='end', iid=i, text=decrypt_value(row[0]), values=(decrypt_value(row[2]), decrypt_value(row[1]), decrypt_value(row[4])))
-        i += 1
-    tab_2_treeview.pack()
-    cur.close()
-    con.close()
+    p = get_db_path()
+    if p is not None:
+        con = connect(p)
+        cur = con.cursor()
+        cur.execute("SELECT * FROM msd_appointments")
+        all_appointments = cur.fetchall()
+        i = 0
+        for row in all_appointments:
+            tab_2_treeview.insert(parent='', index='end', iid=i, text=decrypt_value(row[0]), values=(decrypt_value(row[2]), decrypt_value(row[1]), decrypt_value(row[4])))
+            i += 1
+        tab_2_treeview.pack()
+        cur.close()
+        con.close()
 
 def update_tab_2_treeview():
     for child in tab_2_treeview.get_children():
@@ -264,16 +294,18 @@ def update_tab_2_treeview():
     read_appointments_from_db()
 
 def read_appointment_title_from_db(name):
-    con = connect('msd.db')
-    cur = con.cursor()
-    cur.execute("""SELECT name FROM msd_appointments WHERE name=:name""", {'name': encrypt_value(name)})
-    got_name = cur.fetchone()
-    cur.close()
-    con.close()
-    if got_name == None:
-        return None
-    else:
-        return decrypt_value(got_name[0])
+    p = get_db_path()
+    if p is not None:
+        con = connect(p)
+        cur = con.cursor()
+        cur.execute("""SELECT name FROM msd_appointments WHERE name=:name""", {'name': encrypt_value(name)})
+        got_name = cur.fetchone()
+        cur.close()
+        con.close()
+        if got_name == None:
+            return None
+        else:
+            return decrypt_value(got_name[0])
 
 def check_apointment_name_redundancy(name):
     db_name = read_appointment_title_from_db(name)
@@ -283,27 +315,30 @@ def check_apointment_name_redundancy(name):
         return False
 
 def get_selected_appointments(name):
-    con = connect('msd.db')
-    cur = con.cursor()
-    cur.execute("""SELECT * FROM msd_appointments WHERE name=:name""", {'name': encrypt_value(name)})
-    got_name = cur.fetchone()
-    cur.close()
-    con.close()
-    if got_name == None:
-        return None
-    else:
-        return decrypt_value(got_name[0]), decrypt_value(got_name[3]), decrypt_value(got_name[1]), decrypt_value(got_name[4]), decrypt_value(got_name[2])
+    p = get_db_path()
+    if p is not None:
+        con = connect(p)
+        cur = con.cursor()
+        cur.execute("""SELECT * FROM msd_appointments WHERE name=:name""", {'name': encrypt_value(name)})
+        got_name = cur.fetchone()
+        cur.close()
+        con.close()
+        if got_name == None:
+            return None
+        else:
+            return decrypt_value(got_name[0]), decrypt_value(got_name[3]), decrypt_value(got_name[1]), decrypt_value(got_name[4]), decrypt_value(got_name[2])
 
 def save_appointment():
-    if not check_apointment_name_redundancy(appointment_name_entry.get().strip()):
+    p = get_db_path()
+    if not check_apointment_name_redundancy(appointment_name_entry.get().strip()) and p is not None:
         add_appointments_button["state"] = "normal"
         open_appointments_button["state"] = "normal"
         delete_appointments_button["state"] = "normal"
         appointment_date = cal.selection_get()
         appointment_time = appointment_time_entry.get().strip()
-        con = connect('msd.db')
+        con = connect(p)
         cur = con.cursor()
-        cur.execute("INSERT INTO msd_appointments (name, date, time, description, status) VALUES (?, ?, ?, ?, ?)", (encrypt_value(appointment_name_entry.get().strip()), encrypt_value(appointment_date), encrypt_value(appointment_time), encrypt_value(appointment_textarea.get("1.0", 'end').strip()), encrypt_value(appointment_status_spinbox.get())))
+        cur.execute("INSERT INTO msd_appointments (name, date, time, description, status) VALUES (?, ?, ?, ?, ?)", (encrypt_value(appointment_name_entry.get().strip()), encrypt_value(str(appointment_date)), encrypt_value(appointment_time), encrypt_value(appointment_textarea.get("1.0", 'end').strip()), encrypt_value(appointment_status_spinbox.get())))
         con.commit()
         cur.close()
         con.close()
@@ -317,17 +352,19 @@ def appointment_cancel():
     window.destroy()  
 
 def update_appointment(name, new_date, description, new_time, status):
-    add_appointments_button["state"] = "normal"
-    open_appointments_button["state"] = "normal"
-    delete_appointments_button["state"] = "normal"
-    con = connect('msd.db')
-    cur = con.cursor()
-    cur.execute("""UPDATE msd_appointments SET date=:new_date, time=:new_time, description=:description, status=:status WHERE name=:name""", {'name': encrypt_value(name), 'new_date': encrypt_value(new_date), 'new_time': encrypt_value(new_time), 'description': encrypt_value(description), 'status': encrypt_value(status)})
-    con.commit()
-    cur.close()
-    con.close()
-    update_tab_2_treeview()
-    window.destroy()
+    p = get_db_path()
+    if p is not None:
+        add_appointments_button["state"] = "normal"
+        open_appointments_button["state"] = "normal"
+        delete_appointments_button["state"] = "normal"
+        con = connect(p)
+        cur = con.cursor()
+        cur.execute("""UPDATE msd_appointments SET date=:new_date, time=:new_time, description=:description, status=:status WHERE name=:name""", {'name': encrypt_value(name), 'new_date': encrypt_value(new_date), 'new_time': encrypt_value(new_time), 'description': encrypt_value(description), 'status': encrypt_value(status)})
+        con.commit()
+        cur.close()
+        con.close()
+        update_tab_2_treeview()
+        window.destroy()
 
 def add_appointment():
     add_appointments_button["state"] = "disabled"
@@ -425,15 +462,17 @@ def delete_appointment():
     if tab_2_treeview.focus() == '':
         tab_2_button_message.set("Please select an appointment")
     else:
-        tab_2_button_message.set("")
-        delete_name = tab_2_treeview.item(tab_2_treeview.focus())['text'].strip()
-        con = connect('msd.db')
-        cur = con.cursor()
-        cur.execute("""DELETE FROM msd_appointments WHERE name=:name""", {'name': encrypt_value(delete_name)})
-        con.commit()
-        cur.close()
-        con.close()
-        update_tab_2_treeview()
+        p = get_db_path()
+        if p is not None:
+            tab_2_button_message.set("")
+            delete_name = tab_2_treeview.item(tab_2_treeview.focus())['text'].strip()
+            con = connect(p)
+            cur = con.cursor()
+            cur.execute("""DELETE FROM msd_appointments WHERE name=:name""", {'name': encrypt_value(delete_name)})
+            con.commit()
+            cur.close()
+            con.close()
+            update_tab_2_treeview()
         
 #------------------------------------------
 
@@ -441,24 +480,20 @@ def delete_appointment():
 ##### TAB 3 - FUNCTIONS ######
 ########################
 
-def encrypt_pass(password):
-    return encrypt(password, KEY)
-
-def decrypt_pass(password):
-    return decrypt(password, KEY)
-
 def read_passwords_from_db():
-    con = connect('msd.db')
-    cur = con.cursor()
-    cur.execute("SELECT * FROM msd_passwords")
-    all_passwords = cur.fetchall()
-    i = 0
-    for row in all_passwords:
-        tab_3_treeview.insert(parent='', index='end', iid=i, text=decrypt_value(row[0]), values=(decrypt_value(row[1]), decrypt_value(row[2])))
-        i += 1
-    tab_3_treeview.pack()
-    cur.close()
-    con.close()
+    p = get_db_path()
+    if p is not None:
+        con = connect(p)
+        cur = con.cursor()
+        cur.execute("SELECT * FROM msd_passwords")
+        all_passwords = cur.fetchall()
+        i = 0
+        for row in all_passwords:
+            tab_3_treeview.insert(parent='', index='end', iid=i, text=decrypt_value(row[0]), values=(decrypt_value(row[1]), decrypt_value(row[2])))
+            i += 1
+        tab_3_treeview.pack()
+        cur.close()
+        con.close()
 
 def update_tab_3_treeview():
     for child in tab_3_treeview.get_children():
@@ -466,28 +501,32 @@ def update_tab_3_treeview():
     read_passwords_from_db()
 
 def get_selected_passwords(web_desc):
-    con = connect('msd.db')
-    cur = con.cursor()
-    cur.execute("""SELECT * FROM msd_passwords WHERE web_desc=:name""", {'name': encrypt_value(web_desc)})
-    got_data = cur.fetchone()
-    cur.close()
-    con.close()
-    if got_data == None:
-        return None
-    else:
-        return decrypt_value(got_data[0]), decrypt_value(got_data[1]), decrypt_value(got_data[2])
+    p = get_db_path()
+    if p is not None:
+        con = connect(p)
+        cur = con.cursor()
+        cur.execute("""SELECT * FROM msd_passwords WHERE web_desc=:name""", {'name': encrypt_value(web_desc)})
+        got_data = cur.fetchone()
+        cur.close()
+        con.close()
+        if got_data == None:
+            return None
+        else:
+            return decrypt_value(got_data[0]), decrypt_value(got_data[1]), decrypt_value(got_data[2])
 
 def read_password_desc_from_db(web_desc):
-    con = connect('msd.db')
-    cur = con.cursor()
-    cur.execute("""SELECT web_desc FROM msd_passwords WHERE web_desc=:web_desc""", {'web_desc': encrypt_value(web_desc)})
-    got_web_desc = cur.fetchone()
-    cur.close()
-    con.close()    
-    if got_web_desc == None:
-        return None
-    else:
-        return decrypt_value(got_web_desc[0])
+    p = get_db_path()
+    if p is not None:
+        con = connect(p)
+        cur = con.cursor()
+        cur.execute("""SELECT web_desc FROM msd_passwords WHERE web_desc=:web_desc""", {'web_desc': encrypt_value(web_desc)})
+        got_web_desc = cur.fetchone()
+        cur.close()
+        con.close()    
+        if got_web_desc == None:
+            return None
+        else:
+            return decrypt_value(got_web_desc[0])
 
 def check_password_web_desc_redundancy(web_desc):
     db_web_desc = read_password_desc_from_db(web_desc)
@@ -503,12 +542,13 @@ def password_cancel():
     window.destroy()
 
 def save_password():
-    if not check_password_web_desc_redundancy(web_desc_entry.get().strip()):
+    p = get_db_path()
+    if not check_password_web_desc_redundancy(web_desc_entry.get().strip()) and p is not None:
         add_passwords_button["state"] = "normal"
         open_passwords_button["state"] = "normal"
         delete_passwords_button["state"] = "normal"
-        s_web_desc, s_username, s_password = encrypt_pass(web_desc_entry.get().strip()), encrypt_pass(username_entry.get().strip()), encrypt_pass(password_entry.get().strip())
-        con = connect('msd.db')
+        s_web_desc, s_username, s_password = encrypt_value(web_desc_entry.get().strip()), encrypt_value(username_entry.get().strip()), encrypt_value(password_entry.get().strip())
+        con = connect(p)
         cur = con.cursor()
         cur.execute("INSERT INTO msd_passwords (web_desc, username, password) VALUES (?, ?, ?)", (encrypt_value(web_desc_entry.get().strip()), encrypt_value(username_entry.get().strip()), encrypt_value(password_entry.get().strip())))
         con.commit()
@@ -550,17 +590,19 @@ def add_password():
     message_label.pack()
 
 def update_password(web_desc, username, password):
-    add_passwords_button["state"] = "normal"
-    open_passwords_button["state"] = "normal"
-    delete_passwords_button["state"] = "normal"
-    con = connect('msd.db')
-    cur = con.cursor()
-    cur.execute("""UPDATE msd_passwords SET username=:username, password=:password WHERE web_desc=:web_desc""", {'web_desc': encrypt_value(web_desc), 'username': encrypt_value(username), 'password': encrypt_value(password)})
-    con.commit()
-    cur.close()
-    con.close()
-    update_tab_3_treeview()
-    window.destroy()
+    p = get_db_path()
+    if p is not None:
+        add_passwords_button["state"] = "normal"
+        open_passwords_button["state"] = "normal"
+        delete_passwords_button["state"] = "normal"
+        con = connect(p)
+        cur = con.cursor()
+        cur.execute("""UPDATE msd_passwords SET username=:username, password=:password WHERE web_desc=:web_desc""", {'web_desc': encrypt_value(web_desc), 'username': encrypt_value(username), 'password': encrypt_value(password)})
+        con.commit()
+        cur.close()
+        con.close()
+        update_tab_3_treeview()
+        window.destroy()
 
 def open_password():
     global tab_3_button_message
@@ -603,15 +645,17 @@ def delete_password():
     if tab_3_treeview.focus() == '':
         tab_3_button_message.set("Please select a password")
     else:
-        tab_3_button_message.set("")
-        delete_password = tab_3_treeview.item(tab_3_treeview.focus())['text'].strip()
-        con = connect('msd.db')
-        cur = con.cursor()
-        cur.execute("""DELETE FROM msd_passwords WHERE web_desc=:name""", {'name': encrypt_value(delete_password)})
-        con.commit()
-        cur.close()
-        con.close()
-        update_tab_3_treeview()
+        p = get_db_path()
+        if p is not None:
+            tab_3_button_message.set("")
+            delete_password = tab_3_treeview.item(tab_3_treeview.focus())['text'].strip()
+            con = connect(p)
+            cur = con.cursor()
+            cur.execute("""DELETE FROM msd_passwords WHERE web_desc=:name""", {'name': encrypt_value(delete_password)})
+            con.commit()
+            cur.close()
+            con.close()
+            update_tab_3_treeview()
 
 def main():
     global msd_window
@@ -730,12 +774,30 @@ def main():
 
 #------------------------------------------
 
-create_tables()
+the_pass = None
+
+if check_db():
+        paths_data = check_data()
+        if paths_data is None:
+            secret()
+            create_tables()
+        else: 
+            create_tables()
+            the_pass = check_is_login_available()
+else: 
+    paths_data = check_data()
+    if paths_data is None:
+        secret()
+        create_tables()
+    else: 
+        create_tables()
+        the_pass = check_is_login_available()
 
 #------------------------------------------
 
-the_pass = check_is_login_available()
 if the_pass is not None:
+    root = Tk()
+    root.resizable(0, 0)
     root.title("MSD - Login")
     root.geometry('250x80')
     label = Label(root, text="Enter Password")
@@ -746,6 +808,8 @@ if the_pass is not None:
     button.pack(pady=4)
     root.mainloop()
 else:
+    root = Tk()
+    root.resizable(0, 0)
     root.title("MSD - Create Password")
     root.geometry('250x120')
     label_1 = Label(root, text="New Password")
