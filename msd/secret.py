@@ -10,6 +10,7 @@ from os import getcwd
 from time import sleep
 from tkinter.messagebox import showerror, showinfo
 from base64 import b64encode
+from webbrowser import open_new
 
 DBNAME = 'data.db'
 
@@ -25,6 +26,9 @@ def check_db():
             con.close()
         return True
     else: return False
+
+def open_key_gen():
+    open_new("https://kiranendra.github.io/keygen/")
 
 def check_data():
     con = connect(join(getcwd(), DBNAME))
@@ -66,20 +70,22 @@ def validate_paths(key_path, db_path):
 def secret():
     root = Tk()
     root.title("MSD - Validation")
-    root.geometry("360x180")
+    root.geometry("360x220")
     root.resizable(0, 0)
     key_label = Label(root, text='Enter the generated "KEY" path', font="16")
     key_entry_hint = StringVar()
     key_entry_hint.set(r"HINT: D:\New Folder\msd\key.txt")
     global key_entry
     key_entry = Entry(root, textvariable=key_entry_hint, width='50')
+    key_gen_button = Button(root, text="Don't have a key create one!", command=open_key_gen)
     db_label = Label(root, text='Enter a vaild path to "SAVE" your Data', font='16')
     db_entry_hint = StringVar()
     db_entry_hint.set(r"HINT: E:\Data\Work\msd")
     global db_entry
     db_entry = Entry(root, textvariable=db_entry_hint, width='50')
     key_label.pack(pady=5)
-    key_entry.pack()
+    key_entry.pack(pady=5)
+    key_gen_button.pack()
     db_label.pack(pady=5)
     db_entry.pack()
     global validate_button
