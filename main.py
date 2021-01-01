@@ -43,6 +43,7 @@ def create_tables():
         con.close()
     else:
         showerror("Error", "Error while creating the tables")
+        exit()
 
 def create_login(user_pass):
     p = get_db_path()
