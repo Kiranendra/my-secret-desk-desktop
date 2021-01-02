@@ -1,7 +1,5 @@
-My Secret Desk
+# My Secret Desk
+A desktop application for storing your notes, appointmets and passwords. Visit this [site](https://kiranendra.github.io/msd/) to know more.
 
-A desktop application for storing appointmets, notes and passwords (with encryption).
-
-This is not a final product. Updates will be released soon.
-
-Refer the LICENSE before checking the source code if you want to use it.
+#### This application is licensed under ``Mozilla Public License Version 2.0``
+Check the license to know more.
