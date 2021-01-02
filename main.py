@@ -25,7 +25,13 @@ def decrypt_value(value):
     return decrypted(value)
 
 def close_application():
-    msd_window.destroy()
+    try:
+        window.destroy()
+    except NameError:
+        pass
+    finally:
+        msd_window.destroy()
+    
 
 def do_nothing():
     pass  
@@ -43,6 +49,7 @@ def create_tables():
         con.close()
     else:
         showerror("Error", "Error while creating the tables")
+        root.destroy()
         exit()
 
 def create_login(user_pass):
@@ -59,6 +66,8 @@ def create_login(user_pass):
         exit()
     else:
         showerror("Error", "Error while creating login")
+        root.destroy()
+        exit()
 
 def check_is_login_available():
     p = get_db_path()
@@ -72,6 +81,8 @@ def check_is_login_available():
         con.close()
     else:
         showerror("Error", "Error while checking login")
+        root.destroy()
+        exit()
     if got_pass == None:
         return None
     else:
@@ -143,6 +154,8 @@ def save_notes():
         add_notes_button["state"] = "normal"
         open_notes_button["state"] = "normal"
         delete_notes_button["state"] = "normal"
+        tabs_window.tab(1, state="normal")
+        tabs_window.tab(2, state="normal")
         now_date = str(localtime().tm_year) + '-' + str(localtime().tm_mon) + '-' + str(localtime().tm_mday)
         now_time = str(localtime().tm_hour) + ':' + str(localtime().tm_min)  + ':' + str(localtime().tm_sec)
         con = connect(p)
@@ -160,6 +173,8 @@ def update_notes(title, notes):
         add_notes_button["state"] = "normal"
         open_notes_button["state"] = "normal"
         delete_notes_button["state"] = "normal"
+        tabs_window.tab(1, state="normal")
+        tabs_window.tab(2, state="normal")
         now_date = str(localtime().tm_year) + '-' + str(localtime().tm_mon) + '-' + str(localtime().tm_mday)
         now_time = str(localtime().tm_hour) + ':' + str(localtime().tm_min)  + ':' + str(localtime().tm_sec)
         con = connect(p)
@@ -175,6 +190,8 @@ def notes_cancel():
     add_notes_button["state"] = "normal"
     open_notes_button["state"] = "normal"
     delete_notes_button["state"] = "normal"
+    tabs_window.tab(1, state="normal")
+    tabs_window.tab(2, state="normal")
     window.destroy()  
 
 def read_notes_from_db():
@@ -196,6 +213,8 @@ def add_notes():
     add_notes_button["state"] = "disabled"
     open_notes_button["state"] = "disabled"
     delete_notes_button["state"] = "disabled"
+    tabs_window.tab(1, state="disabled")
+    tabs_window.tab(2, state="disabled")
     global window
     window = Tk()
     window.title("Add Notes")
@@ -227,6 +246,8 @@ def open_notes():
         add_notes_button["state"] = "disabled"
         open_notes_button["state"] = "disabled"
         delete_notes_button["state"] = "disabled"
+        tabs_window.tab(1, state="disabled")
+        tabs_window.tab(2, state="disabled")
         tab_1_button_message.set("")
         selected_notes = get_selected_notes(tab_1_treeview.item(tab_1_treeview.focus())['text'].strip())
         global window
@@ -335,6 +356,8 @@ def save_appointment():
         add_appointments_button["state"] = "normal"
         open_appointments_button["state"] = "normal"
         delete_appointments_button["state"] = "normal"
+        tabs_window.tab(0, state="normal")
+        tabs_window.tab(2, state="normal")
         appointment_date = cal.selection_get()
         appointment_time = appointment_time_entry.get().strip()
         con = connect(p)
@@ -350,6 +373,8 @@ def appointment_cancel():
     add_appointments_button["state"] = "normal"
     open_appointments_button["state"] = "normal"
     delete_appointments_button["state"] = "normal"
+    tabs_window.tab(0, state="normal")
+    tabs_window.tab(2, state="normal")
     window.destroy()  
 
 def update_appointment(name, new_date, description, new_time, status):
@@ -358,6 +383,8 @@ def update_appointment(name, new_date, description, new_time, status):
         add_appointments_button["state"] = "normal"
         open_appointments_button["state"] = "normal"
         delete_appointments_button["state"] = "normal"
+        tabs_window.tab(0, state="normal")
+        tabs_window.tab(2, state="normal")
         con = connect(p)
         cur = con.cursor()
         cur.execute("""UPDATE msd_appointments SET date=:new_date, time=:new_time, description=:description, status=:status WHERE name=:name""", {'name': encrypt_value(name), 'new_date': encrypt_value(new_date), 'new_time': encrypt_value(new_time), 'description': encrypt_value(description), 'status': encrypt_value(status)})
@@ -371,6 +398,8 @@ def add_appointment():
     add_appointments_button["state"] = "disabled"
     open_appointments_button["state"] = "disabled"
     delete_appointments_button["state"] = "disabled"
+    tabs_window.tab(0, state="disabled")
+    tabs_window.tab(2, state="disabled")
     global window
     window = Tk()
     window.title("Add Appointment")
@@ -418,6 +447,8 @@ def open_appointment():
         add_appointments_button["state"] = "disabled"
         open_appointments_button["state"] = "disabled"
         delete_appointments_button["state"] = "disabled"
+        tabs_window.tab(0, state="disabled")
+        tabs_window.tab(2, state="disabled")
         tab_2_button_message.set("")
         appointment_name, appointment_description, appointment_date, appointment_status, appointment_time = get_selected_appointments(tab_2_treeview.item(tab_2_treeview.focus())['text'].strip())
         appointment_year, appointment_month, appointment_day = appointment_date.split('-')
@@ -540,6 +571,8 @@ def password_cancel():
     add_passwords_button["state"] = "normal"
     open_passwords_button["state"] = "normal"
     delete_passwords_button["state"] = "normal"
+    tabs_window.tab(0, state="normal")
+    tabs_window.tab(1, state="normal")
     window.destroy()
 
 def save_password():
@@ -548,6 +581,8 @@ def save_password():
         add_passwords_button["state"] = "normal"
         open_passwords_button["state"] = "normal"
         delete_passwords_button["state"] = "normal"
+        tabs_window.tab(0, state="normal")
+        tabs_window.tab(1, state="normal")
         s_web_desc, s_username, s_password = encrypt_value(web_desc_entry.get().strip()), encrypt_value(username_entry.get().strip()), encrypt_value(password_entry.get().strip())
         con = connect(p)
         cur = con.cursor()
@@ -562,6 +597,8 @@ def add_password():
     add_passwords_button["state"] = "disabled"
     open_passwords_button["state"] = "disabled"
     delete_passwords_button["state"] = "disabled"
+    tabs_window.tab(0, state="disabled")
+    tabs_window.tab(1, state="disabled")
     global window
     window = Tk()
     window.title("Add Password")
@@ -596,6 +633,8 @@ def update_password(web_desc, username, password):
         add_passwords_button["state"] = "normal"
         open_passwords_button["state"] = "normal"
         delete_passwords_button["state"] = "normal"
+        tabs_window.tab(0, state="normal")
+        tabs_window.tab(1, state="normal")
         con = connect(p)
         cur = con.cursor()
         cur.execute("""UPDATE msd_passwords SET username=:username, password=:password WHERE web_desc=:web_desc""", {'web_desc': encrypt_value(web_desc), 'username': encrypt_value(username), 'password': encrypt_value(password)})
@@ -613,6 +652,8 @@ def open_password():
         add_passwords_button["state"] = "disabled"
         open_passwords_button["state"] = "disabled"
         delete_passwords_button["state"] = "disabled"
+        tabs_window.tab(0, state="disabled")
+        tabs_window.tab(1, state="disabled")
         global window
         window = Tk()
         window.title("Update Password")
@@ -666,6 +707,7 @@ def main():
     msd_window.resizable(0, 0)
     web_button = Button(msd_window, text='Visit Website', command=visit_website)
     web_button.pack(anchor='w', padx=10, pady=5)
+    global tabs_window
     tabs_window = Notebook(msd_window)
     
     ################
